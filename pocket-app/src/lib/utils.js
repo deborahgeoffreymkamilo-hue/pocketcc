@@ -1,10 +1,28 @@
+// Currency Conversion Rates (Base: TZS)
+export const EXCHANGE_RATES = {
+  TZS: 1,
+  USD: 2600,
+  EUR: 2800,
+  KES: 20,
+  UGX: 0.70,
+  GBP: 3300
+}
+
+export const convertCurrency = (amount, from = 'TZS', to = 'TZS') => {
+  if (!amount || from === to) return Number(amount || 0)
+  // Convert from source to TZS, then TZS to target
+  const inTZS = Number(amount) * (EXCHANGE_RATES[from] || 1)
+  const targetRate = EXCHANGE_RATES[to] || 1
+  return inTZS / targetRate
+}
+
 // Format currency
 export const formatCurrency = (amount, currency = 'TZS') => {
   if (amount === null || amount === undefined) return '0'
   const num = Number(amount)
   
   if (currency === 'TZS') {
-    return `TSh ${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    return `TSh ${Math.round(num).toLocaleString('en-US')}`
   }
   
   return new Intl.NumberFormat('en-US', {

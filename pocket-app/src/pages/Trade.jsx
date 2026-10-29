@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { addTransaction } from '../lib/api'
 import { formatCurrency } from '../lib/utils'
 import { ArrowLeft, Check, Info } from 'lucide-react'
 
@@ -35,10 +36,23 @@ export default function Trade() {
     setAmount(((totalPower * pct) / 100).toFixed(0))
   }
 
-  const handleExecuteTrade = (e) => {
+  const handleExecuteTrade = async (e) => {
     e.preventDefault()
     if (numAmount <= 0) return
     setSubmitted(true)
+
+    if (user) {
+      const isUSD = profile?.currency === 'USD'
+      await addTransaction({
+        user_id: user.id,
+        type: tradeType === 'buy' ? 'expense' : 'income',
+        amount: isUSD ? numAmount : numAmount * 2600,
+        description: `${tradeType.toUpperCase()} ${estimatedShares} ${selectedAsset.symbol} @ $${selectedAsset.price.toFixed(2)}`,
+        payment_method: 'Trade Portfolio',
+        transaction_date: new Date().toISOString().split('T')[0]
+      })
+    }
+
     setTimeout(() => {
       setSubmitted(false)
     }, 3000)

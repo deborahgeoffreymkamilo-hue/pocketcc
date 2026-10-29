@@ -1,10 +1,11 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import {
   LayoutDashboard, ArrowLeftRight, PieChart, Target,
   BarChart2, Wallet, Calendar, RefreshCw, CreditCard,
   Settings, LogOut, Bell, Plus, Sparkles, TrendingUp, Search, User,
-  FileText, Home, MoreHorizontal
+  FileText, Home, MoreHorizontal, Globe
 } from 'lucide-react'
 import { useState } from 'react'
 import AddTransactionModal from './modals/AddTransactionModal'
@@ -29,12 +30,23 @@ const secondaryItems = [
 ]
 
 export default function Layout() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, updateProfile, signOut } = useAuth()
+  const { lang, setLang, t } = useLanguage()
   const [showAddTx, setShowAddTx] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const location = useLocation()
   const navigate = useNavigate()
+
+  const currency = profile?.currency || 'TZS'
+
+  const toggleCurrency = () => {
+    updateProfile({ currency: currency === 'TZS' ? 'USD' : 'TZS' })
+  }
+
+  const toggleLanguage = () => {
+    setLang(lang === 'en' ? 'sw' : 'en')
+  }
 
   const getPageTitle = () => {
     const path = location.pathname
@@ -148,6 +160,26 @@ export default function Layout() {
 
           {/* Right User Bar */}
           <div className="topbar-right">
+            {/* Quick Currency & Language Switchers */}
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={toggleCurrency}
+              style={{ borderRadius: 16, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}
+              title="Switch Base Currency (TZS / USD)"
+            >
+              {currency}
+            </button>
+
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={toggleLanguage}
+              style={{ borderRadius: 16, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}
+              title="Badili Lugha / Switch Language"
+            >
+              <Globe size={12} style={{ display: 'inline', marginRight: 4 }} />
+              {lang.toUpperCase()}
+            </button>
+
             <button
               className="btn btn-primary btn-sm"
               onClick={() => setShowAddTx(true)}
