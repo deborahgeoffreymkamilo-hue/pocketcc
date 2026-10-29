@@ -1,23 +1,25 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import {
   LayoutDashboard, ArrowLeftRight, PieChart, Target,
   BarChart2, Wallet, Calendar, RefreshCw, CreditCard,
-  Settings, HelpCircle, LogOut, Bell, Plus, Zap
+  Settings, LogOut, Bell, Plus, Sparkles, TrendingUp, Search, User
 } from 'lucide-react'
 import { useState } from 'react'
 import AddTransactionModal from './modals/AddTransactionModal'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
-  { to: '/budget', icon: PieChart, label: 'Budget' },
+  { to: '/market', icon: TrendingUp, label: 'Market' },
+  { to: '/trade', icon: ArrowLeftRight, label: 'Trade Desk' },
+  { to: '/accounts', icon: Wallet, label: 'Portfolio' },
+  { to: '/insights', icon: BarChart2, label: 'AI Insights' },
   { to: '/goals', icon: Target, label: 'Goals' },
-  { to: '/insights', icon: BarChart2, label: 'Insights' },
 ]
 
 const secondaryItems = [
-  { to: '/accounts', icon: Wallet, label: 'Accounts' },
+  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
+  { to: '/budget', icon: PieChart, label: 'Budget' },
   { to: '/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/recurring', icon: RefreshCw, label: 'Recurring' },
   { to: '/debts', icon: CreditCard, label: 'Debts' },
@@ -26,38 +28,52 @@ const secondaryItems = [
 export default function Layout() {
   const { user, profile, signOut } = useAuth()
   const [showAddTx, setShowAddTx] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const location = useLocation()
+  const navigate = useNavigate()
 
   const getPageTitle = () => {
     const path = location.pathname
-    if (path === '/') return { title: 'Dashboard', subtitle: "Here's your financial overview" }
+    if (path === '/') return { title: 'Dashboard', subtitle: "Here's your investment portfolio overview" }
+    if (path === '/market') return { title: 'Market', subtitle: 'Live equities, cryptos & DSE assets' }
+    if (path === '/trade') return { title: 'Trade Desk', subtitle: 'Execute market and limit orders' }
     if (path === '/transactions') return { title: 'Transactions', subtitle: 'All your income & expenses' }
-    if (path === '/budget') return { title: 'Budget', subtitle: 'Monthly spending limits' }
+    if (path === '/budget') return { title: 'Budget', subtitle: 'Monthly category limits' }
     if (path === '/goals') return { title: 'Savings Goals', subtitle: 'Track your targets' }
-    if (path === '/insights') return { title: 'Insights', subtitle: 'Analytics & financial health' }
-    if (path === '/accounts') return { title: 'Accounts', subtitle: 'Manage your accounts' }
-    if (path === '/calendar') return { title: 'Calendar', subtitle: 'Financial events overview' }
-    if (path === '/recurring') return { title: 'Recurring', subtitle: 'Scheduled transactions' }
-    if (path === '/debts') return { title: 'Debts', subtitle: 'Loans & credit tracking' }
-    if (path === '/settings') return { title: 'Settings', subtitle: 'Account & preferences' }
+    if (path === '/insights') return { title: 'AI Insights', subtitle: 'Analytics & Helios financial intelligence' }
+    if (path === '/accounts') return { title: 'Accounts & Portfolio', subtitle: 'M-Pesa, Banks & liquid reserves' }
+    if (path === '/calendar') return { title: 'Calendar', subtitle: 'Upcoming bills & cashflow events' }
+    if (path === '/recurring') return { title: 'Recurring', subtitle: 'Scheduled payments & subscriptions' }
+    if (path === '/debts') return { title: 'Debts', subtitle: 'Loans & money borrowed/lent' }
+    if (path === '/settings') return { title: 'Settings', subtitle: 'Account preferences & security' }
     return { title: 'Pocket', subtitle: 'Personal Finance' }
   }
 
   const { title, subtitle } = getPageTitle()
-  const initials = profile?.full_name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) ||
-    user?.email?.[0]?.toUpperCase() || 'P'
+  const displayName = profile?.full_name || 'Nadia Rashid'
+  const email = user?.email || 'nadia.rashid@gmail.com'
+  const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+
+  const handleGlobalSearch = (e) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+    navigate('/insights')
+  }
 
   return (
     <div className="app-layout">
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">P</div>
-          <span className="sidebar-logo-text">Pocket</span>
+          <div className="sidebar-logo-icon">H</div>
+          <div>
+            <span className="sidebar-logo-text">Helios</span>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block', letterSpacing: 0.5 }}>INVESTMENTS</span>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
-          <span className="nav-section-label">Main</span>
+          <span className="nav-section-label">Investments</span>
           {navItems.map(({ to, icon: Icon, label, exact }) => (
             <NavLink
               key={to}
@@ -70,7 +86,7 @@ export default function Layout() {
             </NavLink>
           ))}
 
-          <span className="nav-section-label">Tools</span>
+          <span className="nav-section-label">Pocket Tools</span>
           {secondaryItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
@@ -99,31 +115,69 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main */}
+      {/* Main Content */}
       <main className="main-content">
-        {/* Topbar */}
+        {/* Topbar matching Helios Showcase in PNG */}
         <header className="topbar">
           <div className="topbar-left">
             <h1 className="topbar-title">{title}</h1>
             <p className="topbar-subtitle">{subtitle}</p>
           </div>
 
+          {/* Center search: "Ask Helios.ai anything..." */}
+          <form onSubmit={handleGlobalSearch} style={{ flex: 1, maxWidth: 360, margin: '0 20px' }}>
+            <div className="form-input-icon">
+              <Sparkles size={15} className="input-icon" color="var(--neon-purple)" />
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Ask Helios.ai anything..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ borderRadius: 20, paddingLeft: 38, fontSize: 13, background: 'var(--bg-input)' }}
+              />
+            </div>
+          </form>
+
+          {/* Right User Bar */}
           <div className="topbar-right">
             <button
               className="btn btn-primary btn-sm"
               onClick={() => setShowAddTx(true)}
+              style={{ borderRadius: 20 }}
             >
-              <Plus size={14} />
-              Add Transaction
+              <Plus size={14} /> Add Transaction
             </button>
-            <button className="btn-icon btn btn-secondary" style={{ position: 'relative' }}>
+
+            <button className="btn-icon btn btn-secondary" style={{ borderRadius: '50%' }}>
               <Bell size={16} />
             </button>
-            <NavLink to="/settings">
-              <div className="avatar-fallback" style={{ cursor: 'pointer' }}>
+
+            <NavLink to="/settings" className="btn-icon btn btn-secondary" style={{ borderRadius: '50%' }}>
+              <Settings size={16} />
+            </NavLink>
+
+            {/* Profile Avatar Pill matching PNG */}
+            <div
+              onClick={() => navigate('/settings')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: 20,
+                background: 'rgba(255,255,255,0.03)'
+              }}
+            >
+              <div className="avatar-fallback" style={{ width: 32, height: 32, fontSize: 12 }}>
                 {initials}
               </div>
-            </NavLink>
+              <div style={{ display: 'none', flexDirection: 'column', textAlign: 'left' }} className="user-text">
+                <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{displayName}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{email}</span>
+              </div>
+            </div>
           </div>
         </header>
 

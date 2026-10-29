@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import AuthPage from './pages/AuthPage'
 import Dashboard from './pages/Dashboard'
+import Market from './pages/Market'
+import Trade from './pages/Trade'
 import Transactions from './pages/Transactions'
 import Budget from './pages/Budget'
 import Goals from './pages/Goals'
@@ -38,6 +40,8 @@ function AppRoutes() {
         <ProtectedRoute><Layout /></ProtectedRoute>
       }>
         <Route index element={<Dashboard />} />
+        <Route path="market" element={<Market />} />
+        <Route path="trade" element={<Trade />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="budget" element={<Budget />} />
         <Route path="goals" element={<Goals />} />
