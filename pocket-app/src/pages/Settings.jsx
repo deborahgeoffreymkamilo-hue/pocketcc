@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getTransactions, seedDemoFinancialData } from '../lib/api'
+import { getGroqApiKey, setGroqApiKey } from '../lib/ai'
 import { CURRENCIES } from '../lib/utils'
-import { User, Shield, Download, LogOut, Check, Database, Sparkles } from 'lucide-react'
+import { User, Shield, Download, LogOut, Check, Database, Sparkles, Key, Bot } from 'lucide-react'
 
 export default function Settings() {
   const { user, profile, updateProfile, signOut } = useAuth()
@@ -14,6 +15,19 @@ export default function Settings() {
   const [exporting, setExporting] = useState(false)
   const [seeding, setSeeding] = useState(false)
   const [seedSuccess, setSeedSuccess] = useState(false)
+  const [groqKey, setGroqKey] = useState('')
+  const [groqSaved, setGroqSaved] = useState(false)
+
+  useEffect(() => {
+    setGroqKey(getGroqApiKey())
+  }, [])
+
+  const handleSaveGroqKey = (e) => {
+    e.preventDefault()
+    setGroqApiKey(groqKey.trim())
+    setGroqSaved(true)
+    setTimeout(() => setGroqSaved(false), 2000)
+  }
 
   const handleSaveProfile = async (e) => {
     e.preventDefault()
@@ -159,6 +173,32 @@ export default function Settings() {
         <button className="btn btn-secondary" onClick={handleExportCSV} disabled={exporting}>
           <Download size={16} /> {exporting ? 'Generating CSV...' : 'Export Financial Records (CSV)'}
         </button>
+      </div>
+
+      {/* Groq AI Assistant Settings */}
+      <div className="card neon-border">
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Bot size={18} color="var(--neon-purple)" /> Helios.ai Configuration (Groq Engine)
+        </h3>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+          Helios.ai connects to Groq for sub-second financial analysis and portfolio intelligence.
+        </p>
+        <form onSubmit={handleSaveGroqKey} style={{ display: 'flex', gap: 10 }}>
+          <div className="form-input-icon" style={{ flex: 1 }}>
+            <Key size={15} className="input-icon" />
+            <input
+              type="password"
+              className="form-input"
+              placeholder="gsk_..."
+              value={groqKey}
+              onChange={e => setGroqKey(e.target.value)}
+              style={{ fontSize: 13 }}
+            />
+          </div>
+          <button type="submit" className="btn btn-secondary">
+            {groqSaved ? <><Check size={14} /> Saved</> : 'Update Key'}
+          </button>
+        </form>
       </div>
 
       {/* Security & Authentication */}

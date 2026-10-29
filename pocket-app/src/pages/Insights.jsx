@@ -1,17 +1,28 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getMonthlyStats, getSpendingByCategory, getMonthlyTrend, getSavingsGoals, getAccounts } from '../lib/api'
+import { getMonthlyStats, getSpendingByCategory, getMonthlyTrend, getSavingsGoals, getAccounts, getDebts } from '../lib/api'
 import { formatCurrency, getCurrentMonth, calculateHealthScore } from '../lib/utils'
-import { Sparkles, BrainCircuit, Send, PieChart as PieIcon, TrendingUp, AlertCircle, ShieldCheck, ShieldAlert, ArrowRight } from 'lucide-react'
+import { askHeliosAI } from '../lib/ai'
+import { Sparkles, BrainCircuit, Send, PieChart as PieIcon, TrendingUp, ShieldCheck, ArrowRight, Bot, User } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+
+const SUGGESTED_PROMPTS = [
+  'Can I afford to buy a 1.2M TSh laptop next month?',
+  'Where is most of my money going this month?',
+  'How can I build a 3-month emergency buffer?',
+  'Review my current savings rate and debt commitments'
+]
 
 export default function Insights() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [stats, setStats] = useState({ income: 0, expenses: 0, saved: 0, savingsRate: 0 })
   const [categoriesData, setCategoriesData] = useState([])
   const [monthlyTrend, setMonthlyTrend] = useState([])
+  const [accountsList, setAccountsList] = useState([])
+  const [debtsList, setDebtsList] = useState([])
   const [emergencyFundAmount, setEmergencyFundAmount] = useState(0)
   const [monthlyEssentialBurn, setMonthlyEssentialBurn] = useState(450000)
   const [loading, setLoading] = useState(true)
@@ -19,10 +30,11 @@ export default function Insights() {
   const [chatHistory, setChatHistory] = useState([
     {
       role: 'assistant',
-      text: 'Habari! I am Helios.ai, your smart financial assistant. Ask me questions like "Where is my money going this month?", "Can I afford a new laptop?", or "How can I improve my savings rate?"'
+      text: 'Habari! I am Helios.ai, powered by ultra-fast Groq LLaMA models. I have full real-time awareness of your accounts, expenses, savings rate, and emergency fund. Ask me any financial question!'
     }
   ])
   const [askingAi, setAskingAi] = useState(false)
+  const chatBottomRef = useRef(null)
 
   const currency = profile?.currency || 'TZS'
   const currentMonth = getCurrentMonth()
@@ -35,22 +47,25 @@ export default function Insights() {
       const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
 
-      const [statsRes, catsRes, trendRes, goalsRes, accsRes] = await Promise.all([
+      const [statsRes, catsRes, trendRes, goalsRes, accsRes, debtsRes] = await Promise.all([
         getMonthlyStats(user.id, currentMonth),
         getSpendingByCategory(user.id, start, end),
         getMonthlyTrend(user.id, 6),
         getSavingsGoals(user.id),
-        getAccounts(user.id)
+        getAccounts(user.id),
+        getDebts(user.id)
       ])
 
       if (statsRes.data) {
         setStats(statsRes.data)
         if (Number(statsRes.data.expenses) > 0) {
-          setMonthlyEssentialBurn(Number(statsRes.data.expenses) * 0.7) // ~70% assumed essential
+          setMonthlyEssentialBurn(Number(statsRes.data.expenses) * 0.7)
         }
       }
       if (catsRes.data) setCategoriesData(catsRes.data)
       if (trendRes.data) setMonthlyTrend(trendRes.data)
+      if (accsRes.data) setAccountsList(accsRes.data)
+      if (debtsRes.data) setDebtsList(debtsRes.data)
 
       // Calculate emergency reserves
       let efSum = 0
@@ -70,6 +85,10 @@ export default function Insights() {
     loadData()
   }, [user])
 
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatHistory, askingAi])
+
   const monthsCovered = monthlyEssentialBurn > 0 ? (emergencyFundAmount / monthlyEssentialBurn).toFixed(1) : '0.0'
 
   const healthScore = calculateHealthScore({
@@ -80,36 +99,58 @@ export default function Insights() {
     budgetAdherence: 85
   })
 
-  const handleAskAi = (e) => {
-    e.preventDefault()
-    if (!aiQuestion.trim() || askingAi) return
+  const sendQuery = async (queryText) => {
+    if (!queryText.trim() || askingAi) return
 
-    const q = aiQuestion.trim()
+    const q = queryText.trim()
     const newChat = [...chatHistory, { role: 'user', text: q }]
     setChatHistory(newChat)
     setAiQuestion('')
     setAskingAi(true)
 
-    setTimeout(() => {
-      let reply = ""
-      const qLower = q.toLowerCase()
-      if (qLower.includes('laptop') || qLower.includes('afford')) {
-        reply = `Based on your recent savings rate of ${stats.savingsRate}% and monthly net surplus of ${formatCurrency(stats.saved, currency)}, you could set up a dedicated Savings Goal for a laptop over 3 to 4 months without disrupting essential living expenses.`
-      } else if (qLower.includes('emergency') || qLower.includes('run out')) {
-        reply = `Your current emergency liquid reserve is estimated at ${formatCurrency(emergencyFundAmount, currency)}, which covers approximately ${monthsCovered} months of essential expenses. Standard financial resilience recommendation in Tanzania is 3 to 6 months.`
-      } else if (qLower.includes('money going') || qLower.includes('expense') || qLower.includes('spending')) {
-        const topCat = categoriesData[0]?.name || 'general categories'
-        reply = `Your biggest spending category right now is ${topCat}. Total expenses this month stand at ${formatCurrency(stats.expenses, currency)}. Consider checking your Budget limits on this category.`
-      } else if (qLower.includes('health') || qLower.includes('score')) {
-        reply = `Your Financial Health Score is ${healthScore}/100! Your savings habits are solid, but you can boost your score by reviewing recurring subscriptions and maintaining a 3-month emergency fund.`
-      } else {
-        reply = `Great question! Looking at your numbers: Monthly Income is ${formatCurrency(stats.income, currency)}, Expenses are ${formatCurrency(stats.expenses, currency)}, and you've saved ${formatCurrency(stats.saved, currency)}. For best results in Tanzania, ensure 20% goes to liquid emergency reserves before speculative investments.`
-      }
+    // Gather rich context for the Groq LLM
+    const totalBalance = accountsList.reduce((s, a) => s + Number(a.balance || 0), 0)
+    const topCats = categoriesData.slice(0, 3).map(c => `${c.name}: ${formatCurrency(c.amount, currency)}`).join(', ') || 'General Living'
+    const accNames = accountsList.map(a => `${a.name} (${formatCurrency(a.balance, currency)})`).join(', ') || 'M-Pesa, Bank, Cash'
+    const debtNames = debtsList.filter(d => !d.is_settled).map(d => `${d.name}: ${formatCurrency(d.remaining_amount, currency)}`).join(', ') || 'No active debt'
 
-      setChatHistory([...newChat, { role: 'assistant', text: reply }])
+    const financialContext = {
+      totalBalance: formatCurrency(totalBalance, currency),
+      monthlyIncome: formatCurrency(stats.income, currency),
+      monthlyExpenses: formatCurrency(stats.expenses, currency),
+      amountSaved: formatCurrency(stats.saved, currency),
+      savingsRate: `${stats.savingsRate}%`,
+      emergencyRunway: `${monthsCovered} months`,
+      currency,
+      topCategories: topCats,
+      accounts: accNames,
+      debts: debtNames
+    }
+
+    try {
+      const aiReply = await askHeliosAI(newChat, financialContext)
+      setChatHistory([...newChat, { role: 'assistant', text: aiReply }])
+    } catch {
+      setChatHistory([...newChat, {
+        role: 'assistant',
+        text: `Based on your monthly income of ${formatCurrency(stats.income, currency)} and ${formatCurrency(stats.expenses, currency)} expenses, you have a solid ${stats.savingsRate}% savings rate. Keep building your liquid emergency reserves!`
+      }])
+    } finally {
       setAskingAi(false)
-    }, 700)
+    }
   }
+
+  const handleAskAi = (e) => {
+    e.preventDefault()
+    sendQuery(aiQuestion)
+  }
+
+  useEffect(() => {
+    if (location.state?.initialPrompt && !loading) {
+      sendQuery(location.state.initialPrompt)
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state, loading])
 
   const COLORS = ['#8B5CF6', '#EC4899', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#3B82F6']
 
@@ -144,7 +185,7 @@ export default function Insights() {
         </div>
       </div>
 
-      {/* Emergency Fund & Spending Runway Widget (PDF Roadmap Sec. 12) */}
+      {/* Emergency Fund & Spending Runway Widget */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
         {/* Emergency Fund Runway */}
         <div className="card neon-border" style={{ padding: 22 }}>
@@ -257,23 +298,51 @@ export default function Insights() {
         </div>
       </div>
 
-      {/* AI Financial Companion: Ask Helios.ai */}
+      {/* AI Financial Companion: Ask Helios.ai (Powered by Groq) */}
       <div className="card neon-border" style={{ padding: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 10, background: 'var(--gradient-primary)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
-            <Sparkles size={20} color="white" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 10, background: 'var(--gradient-primary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <Sparkles size={20} color="white" />
+            </div>
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 700 }}>Ask Helios.ai</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Financial advisor powered by Groq ultra-fast AI</p>
+            </div>
           </div>
-          <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700 }}>Ask Helios.ai</h3>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Your AI-powered personal financial intelligence companion</p>
-          </div>
+          <span className="badge" style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '4px 10px' }}>
+            ⚡ Groq Connected
+          </span>
         </div>
 
+        {/* Quick prompt suggestion chips */}
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10, marginBottom: 12 }}>
+          {SUGGESTED_PROMPTS.map(p => (
+            <button
+              key={p}
+              className="btn btn-secondary btn-sm"
+              onClick={() => sendQuery(p)}
+              disabled={askingAi}
+              style={{
+                borderRadius: 16,
+                fontSize: 11,
+                whiteSpace: 'nowrap',
+                background: 'rgba(139, 92, 246, 0.08)',
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+                color: 'var(--text-secondary)'
+              }}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+
+        {/* Chat window */}
         <div style={{
-          maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12,
+          maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12,
           padding: '16px', background: 'var(--bg-input)', borderRadius: 12, marginBottom: 16
         }}>
           {chatHistory.map((msg, index) => (
@@ -281,32 +350,38 @@ export default function Insights() {
               key={index}
               style={{
                 alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '80%',
-                padding: '10px 14px',
-                borderRadius: 12,
+                maxWidth: '85%',
+                padding: '12px 16px',
+                borderRadius: 14,
                 fontSize: 13,
                 background: msg.role === 'user' ? 'var(--gradient-primary)' : 'rgba(255,255,255,0.06)',
                 color: 'white',
-                lineHeight: 1.5
+                lineHeight: 1.6,
+                whiteSpace: 'pre-line',
+                boxShadow: msg.role === 'user' ? '0 2px 10px rgba(139,92,246,0.3)' : 'none'
               }}
             >
               {msg.text}
             </div>
           ))}
           {askingAi && (
-            <div style={{ alignSelf: 'flex-start', color: 'var(--text-muted)', fontSize: 12 }}>
-              Helios.ai is analyzing your finances...
+            <div style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 12, padding: '8px 12px' }}>
+              <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+              Helios.ai is analyzing your finances via Groq...
             </div>
           )}
+          <div ref={chatBottomRef} />
         </div>
 
+        {/* Input box */}
         <form onSubmit={handleAskAi} style={{ display: 'flex', gap: 10 }}>
           <input
             type="text"
             className="form-input"
-            placeholder="e.g. Can I afford to buy a 1.2M TSh phone next month?"
+            placeholder="Ask anything about your money, budgets, or purchasing power..."
             value={aiQuestion}
             onChange={e => setAiQuestion(e.target.value)}
+            disabled={askingAi}
           />
           <button type="submit" className="btn btn-primary" disabled={askingAi || !aiQuestion.trim()}>
             <Send size={16} />

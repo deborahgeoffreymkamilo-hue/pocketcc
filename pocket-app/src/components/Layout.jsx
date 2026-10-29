@@ -62,7 +62,9 @@ export default function Layout() {
   const handleGlobalSearch = (e) => {
     e.preventDefault()
     if (!searchQuery.trim()) return
-    navigate('/insights')
+    navigate('/insights', { state: { initialPrompt: searchQuery } })
+    setSearchQuery('')
+  }
   }
 
   return (
