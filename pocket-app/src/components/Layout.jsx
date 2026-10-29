@@ -3,10 +3,12 @@ import { useAuth } from '../contexts/AuthContext'
 import {
   LayoutDashboard, ArrowLeftRight, PieChart, Target,
   BarChart2, Wallet, Calendar, RefreshCw, CreditCard,
-  Settings, LogOut, Bell, Plus, Sparkles, TrendingUp, Search, User
+  Settings, LogOut, Bell, Plus, Sparkles, TrendingUp, Search, User,
+  FileText, Home, MoreHorizontal
 } from 'lucide-react'
 import { useState } from 'react'
 import AddTransactionModal from './modals/AddTransactionModal'
+import NotificationsModal from './NotificationsModal'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -20,6 +22,7 @@ const navItems = [
 const secondaryItems = [
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/budget', icon: PieChart, label: 'Budget' },
+  { to: '/reports', icon: FileText, label: 'Reports' },
   { to: '/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/recurring', icon: RefreshCw, label: 'Recurring' },
   { to: '/debts', icon: CreditCard, label: 'Debts' },
@@ -28,6 +31,7 @@ const secondaryItems = [
 export default function Layout() {
   const { user, profile, signOut } = useAuth()
   const [showAddTx, setShowAddTx] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const location = useLocation()
   const navigate = useNavigate()
@@ -42,6 +46,7 @@ export default function Layout() {
     if (path === '/goals') return { title: 'Savings Goals', subtitle: 'Track your targets' }
     if (path === '/insights') return { title: 'AI Insights', subtitle: 'Analytics & Helios financial intelligence' }
     if (path === '/accounts') return { title: 'Accounts & Portfolio', subtitle: 'M-Pesa, Banks & liquid reserves' }
+    if (path === '/reports') return { title: 'Reports & Statements', subtitle: 'Monthly audit & cashflow statement' }
     if (path === '/calendar') return { title: 'Calendar', subtitle: 'Upcoming bills & cashflow events' }
     if (path === '/recurring') return { title: 'Recurring', subtitle: 'Scheduled payments & subscriptions' }
     if (path === '/debts') return { title: 'Debts', subtitle: 'Loans & money borrowed/lent' }
@@ -62,7 +67,7 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      {/* Sidebar */}
+      {/* Sidebar for Desktop */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">H</div>
@@ -115,7 +120,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <main className="main-content">
         {/* Topbar matching Helios Showcase in PNG */}
         <header className="topbar">
@@ -149,8 +154,16 @@ export default function Layout() {
               <Plus size={14} /> Add Transaction
             </button>
 
-            <button className="btn-icon btn btn-secondary" style={{ borderRadius: '50%' }}>
+            <button
+              className="btn-icon btn btn-secondary"
+              onClick={() => setShowNotifications(true)}
+              style={{ borderRadius: '50%', position: 'relative' }}
+            >
               <Bell size={16} />
+              <span style={{
+                position: 'absolute', top: 6, right: 6, width: 8, height: 8,
+                background: 'var(--neon-pink)', borderRadius: '50%'
+              }} />
             </button>
 
             <NavLink to="/settings" className="btn-icon btn btn-secondary" style={{ borderRadius: '50%' }}>
@@ -187,9 +200,41 @@ export default function Layout() {
         </div>
       </main>
 
+      {/* Mobile Bottom Navigation Bar (Matching exact PNG bottom row: Home, Portfolio, Trade, AI, More) */}
+      <nav className="bottom-nav">
+        <NavLink to="/" end className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <Home size={18} className="nav-icon" />
+          <span>Home</span>
+        </NavLink>
+
+        <NavLink to="/accounts" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <Wallet size={18} className="nav-icon" />
+          <span>Portfolio</span>
+        </NavLink>
+
+        <NavLink to="/trade" className="bottom-nav-action" title="Trade">
+          <Plus size={22} />
+        </NavLink>
+
+        <NavLink to="/insights" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <Sparkles size={18} className="nav-icon" />
+          <span>AI</span>
+        </NavLink>
+
+        <NavLink to="/settings" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <MoreHorizontal size={18} className="nav-icon" />
+          <span>More</span>
+        </NavLink>
+      </nav>
+
       {/* Add Transaction Modal */}
       {showAddTx && (
         <AddTransactionModal onClose={() => setShowAddTx(false)} />
+      )}
+
+      {/* Notifications Drawer */}
+      {showNotifications && (
+        <NotificationsModal onClose={() => setShowNotifications(false)} />
       )}
     </div>
   )

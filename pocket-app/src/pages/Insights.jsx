@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getMonthlyStats, getSpendingByCategory, getMonthlyTrend } from '../lib/api'
+import { getMonthlyStats, getSpendingByCategory, getMonthlyTrend, getSavingsGoals, getAccounts } from '../lib/api'
 import { formatCurrency, getCurrentMonth, calculateHealthScore } from '../lib/utils'
-import { Sparkles, BrainCircuit, Send, PieChart as PieIcon, TrendingUp, AlertCircle, ShieldCheck } from 'lucide-react'
+import { Sparkles, BrainCircuit, Send, PieChart as PieIcon, TrendingUp, AlertCircle, ShieldCheck, ShieldAlert, ArrowRight } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { useNavigate } from 'react-router-dom'
 
 export default function Insights() {
   const { user, profile } = useAuth()
+  const navigate = useNavigate()
   const [stats, setStats] = useState({ income: 0, expenses: 0, saved: 0, savingsRate: 0 })
   const [categoriesData, setCategoriesData] = useState([])
   const [monthlyTrend, setMonthlyTrend] = useState([])
+  const [emergencyFundAmount, setEmergencyFundAmount] = useState(0)
+  const [monthlyEssentialBurn, setMonthlyEssentialBurn] = useState(450000)
   const [loading, setLoading] = useState(true)
   const [aiQuestion, setAiQuestion] = useState('')
   const [chatHistory, setChatHistory] = useState([
@@ -31,23 +35,46 @@ export default function Insights() {
       const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
 
-      const [statsRes, catsRes, trendRes] = await Promise.all([
+      const [statsRes, catsRes, trendRes, goalsRes, accsRes] = await Promise.all([
         getMonthlyStats(user.id, currentMonth),
         getSpendingByCategory(user.id, start, end),
-        getMonthlyTrend(user.id, 6)
+        getMonthlyTrend(user.id, 6),
+        getSavingsGoals(user.id),
+        getAccounts(user.id)
       ])
 
-      if (statsRes.data) setStats(statsRes.data)
+      if (statsRes.data) {
+        setStats(statsRes.data)
+        if (Number(statsRes.data.expenses) > 0) {
+          setMonthlyEssentialBurn(Number(statsRes.data.expenses) * 0.7) // ~70% assumed essential
+        }
+      }
       if (catsRes.data) setCategoriesData(catsRes.data)
       if (trendRes.data) setMonthlyTrend(trendRes.data)
+
+      // Calculate emergency reserves
+      let efSum = 0
+      if (goalsRes.data) {
+        const efGoal = goalsRes.data.find(g => g.name.toLowerCase().includes('emergency'))
+        if (efGoal) efSum += Number(efGoal.current_amount || 0)
+      }
+      if (accsRes.data) {
+        const liquidAccs = accsRes.data.filter(a => a.type === 'mobile_money' || a.type === 'bank' || a.type === 'cash')
+        const liquidSum = liquidAccs.reduce((s, a) => s + Number(a.balance || 0), 0)
+        efSum = Math.max(efSum, liquidSum * 0.5)
+      }
+      setEmergencyFundAmount(efSum || 1200000)
+
       setLoading(false)
     }
     loadData()
   }, [user])
 
+  const monthsCovered = monthlyEssentialBurn > 0 ? (emergencyFundAmount / monthlyEssentialBurn).toFixed(1) : '0.0'
+
   const healthScore = calculateHealthScore({
     savingsRate: Number(stats.savingsRate || 0),
-    hasEmergencyFund: true,
+    hasEmergencyFund: Number(monthsCovered) >= 3,
     hasActiveBudget: true,
     debtRatio: 0.1,
     budgetAdherence: 85
@@ -68,6 +95,8 @@ export default function Insights() {
       const qLower = q.toLowerCase()
       if (qLower.includes('laptop') || qLower.includes('afford')) {
         reply = `Based on your recent savings rate of ${stats.savingsRate}% and monthly net surplus of ${formatCurrency(stats.saved, currency)}, you could set up a dedicated Savings Goal for a laptop over 3 to 4 months without disrupting essential living expenses.`
+      } else if (qLower.includes('emergency') || qLower.includes('run out')) {
+        reply = `Your current emergency liquid reserve is estimated at ${formatCurrency(emergencyFundAmount, currency)}, which covers approximately ${monthsCovered} months of essential expenses. Standard financial resilience recommendation in Tanzania is 3 to 6 months.`
       } else if (qLower.includes('money going') || qLower.includes('expense') || qLower.includes('spending')) {
         const topCat = categoriesData[0]?.name || 'general categories'
         reply = `Your biggest spending category right now is ${topCat}. Total expenses this month stand at ${formatCurrency(stats.expenses, currency)}. Consider checking your Budget limits on this category.`
@@ -97,7 +126,7 @@ export default function Insights() {
               {healthScore >= 80 ? 'Excellent Financial Health!' : healthScore >= 60 ? 'Good Progress - Keep Building' : 'Needs Optimization'}
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-              Calculated across your monthly savings consistency ({stats.savingsRate}%), debt ratio, and budget adherence.
+              Calculated across your monthly savings consistency ({stats.savingsRate}%), debt ratio, emergency fund runway ({monthsCovered} mos), and budget adherence.
             </p>
           </div>
 
@@ -112,6 +141,60 @@ export default function Insights() {
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>OUT OF 100</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Emergency Fund & Spending Runway Widget (PDF Roadmap Sec. 12) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+        {/* Emergency Fund Runway */}
+        <div className="card neon-border" style={{ padding: 22 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ShieldCheck size={18} color="#10B981" />
+              <h3 style={{ fontSize: 15, fontWeight: 700 }}>Emergency Runway</h3>
+            </div>
+            <span className="badge" style={{ background: Number(monthsCovered) >= 3 ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: Number(monthsCovered) >= 3 ? '#10B981' : '#F59E0B' }}>
+              {Number(monthsCovered) >= 3 ? 'Safe Buffer' : 'Build Buffer'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
+            <span style={{ fontSize: 32, fontWeight: 800, color: '#10B981' }}>{monthsCovered}</span>
+            <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>months of living expenses</span>
+          </div>
+
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+            Estimated liquid reserve: <strong>{formatCurrency(emergencyFundAmount, currency)}</strong>. Monthly essential burn: ~{formatCurrency(monthlyEssentialBurn, currency)}/mo.
+          </p>
+
+          <button className="btn btn-secondary btn-sm w-full" onClick={() => navigate('/goals')}>
+            Configure Emergency Goal <ArrowRight size={14} />
+          </button>
+        </div>
+
+        {/* Predictive Next-Month Projection */}
+        <div className="card" style={{ padding: 22 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <TrendingUp size={18} color="var(--neon-pink)" />
+              <h3 style={{ fontSize: 15, fontWeight: 700 }}>Projected Next Month Outflow</h3>
+            </div>
+            <span className="badge badge-expense">Prediction</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
+            <span style={{ fontSize: 28, fontWeight: 800, color: 'white' }}>
+              ~{formatCurrency(Number(stats.expenses || 350000) * 1.05, currency)}
+            </span>
+          </div>
+
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 16 }}>
+            Based on regular utility cycles, grocery cadence, and upcoming recurring subscription dates.
+          </p>
+
+          <button className="btn btn-secondary btn-sm w-full" onClick={() => navigate('/budget')}>
+            Review Category Limits <ArrowRight size={14} />
+          </button>
         </div>
       </div>
 

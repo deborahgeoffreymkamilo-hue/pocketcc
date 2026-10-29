@@ -321,3 +321,130 @@ export const getMonthlyTrend = async (userId, months = 6) => {
 
   return { data: results }
 }
+
+
+// ======================== DEMO DATA SEEDER ========================
+
+export const seedDemoFinancialData = async (userId, currency = 'TZS') => {
+  if (!userId) return
+
+  // 1. Create default accounts
+  const { data: mpesa } = await addAccount({
+    user_id: userId,
+    name: 'Vodacom M-Pesa',
+    type: 'mobile_money',
+    provider: 'M-Pesa',
+    balance: 450000,
+    color: '#EF4444',
+    currency
+  })
+
+  const { data: crdb } = await addAccount({
+    user_id: userId,
+    name: 'CRDB Bank',
+    type: 'bank',
+    provider: 'CRDB Bank',
+    balance: 1250000,
+    color: '#10B981',
+    currency
+  })
+
+  const { data: cash } = await addAccount({
+    user_id: userId,
+    name: 'Physical Cash',
+    type: 'cash',
+    provider: 'Cash',
+    balance: 85000,
+    color: '#06B6D4',
+    currency
+  })
+
+  // 2. Fetch categories
+  const { data: cats } = await getCategories(userId)
+  const catMap = {}
+  cats?.forEach(c => { catMap[c.name] = c.id })
+
+  // 3. Insert transactions
+  const sampleTxs = [
+    {
+      user_id: userId,
+      account_id: crdb?.id,
+      category_id: catMap['Salary'] || null,
+      type: 'income',
+      amount: 1500000,
+      description: 'Monthly Salary - Tech Consulting',
+      payment_method: 'Bank Transfer',
+      transaction_date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString().split('T')[0]
+    },
+    {
+      user_id: userId,
+      account_id: mpesa?.id,
+      category_id: catMap['Food & Dining'] || null,
+      type: 'expense',
+      amount: 25000,
+      description: 'Lunch with colleagues',
+      payment_method: 'M-Pesa',
+      transaction_date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString().split('T')[0]
+    },
+    {
+      user_id: userId,
+      account_id: mpesa?.id,
+      category_id: catMap['Airtime & Data'] || null,
+      type: 'expense',
+      amount: 35000,
+      description: 'Monthly Data Bundle (Vodacom)',
+      payment_method: 'M-Pesa',
+      transaction_date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1).toISOString().split('T')[0]
+    },
+    {
+      user_id: userId,
+      account_id: crdb?.id,
+      category_id: catMap['Rent & Housing'] || null,
+      type: 'expense',
+      amount: 450000,
+      description: 'Apartment Monthly Rent',
+      payment_method: 'Bank Transfer',
+      transaction_date: new Date().toISOString().split('T')[0]
+    }
+  ]
+
+  for (const tx of sampleTxs) {
+    await addTransaction(tx)
+  }
+
+  // 4. Create savings goals
+  await addSavingsGoal({
+    user_id: userId,
+    name: 'Emergency Fund',
+    description: '3-6 months essential living expenses safety buffer',
+    target_amount: 3000000,
+    current_amount: 1500000,
+    target_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 120).toISOString().split('T')[0],
+    color: '#10B981',
+    status: 'active'
+  })
+
+  await addSavingsGoal({
+    user_id: userId,
+    name: 'MacBook Pro M3',
+    description: 'Hardware upgrade for development work',
+    target_amount: 4500000,
+    current_amount: 1800000,
+    target_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString().split('T')[0],
+    color: '#8B5CF6',
+    status: 'active'
+  })
+
+  // 5. Create recurring subscription
+  await addRecurring({
+    user_id: userId,
+    name: 'Fiber Internet (SimbaNET)',
+    type: 'expense',
+    amount: 60000,
+    frequency: 'monthly',
+    next_due_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10).toISOString().split('T')[0],
+    is_active: true
+  })
+
+  return { success: true }
+}

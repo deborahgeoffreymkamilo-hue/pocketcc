@@ -10,6 +10,7 @@ import Budget from './pages/Budget'
 import Goals from './pages/Goals'
 import Insights from './pages/Insights'
 import Accounts from './pages/Accounts'
+import Reports from './pages/Reports'
 import Calendar from './pages/Calendar'
 import Recurring from './pages/Recurring'
 import Debts from './pages/Debts'
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="goals" element={<Goals />} />
         <Route path="insights" element={<Insights />} />
         <Route path="accounts" element={<Accounts />} />
+        <Route path="reports" element={<Reports />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="recurring" element={<Recurring />} />
         <Route path="debts" element={<Debts />} />

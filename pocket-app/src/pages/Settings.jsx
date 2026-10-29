@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { getTransactions } from '../lib/api'
+import { getTransactions, seedDemoFinancialData } from '../lib/api'
 import { CURRENCIES } from '../lib/utils'
-import { User, Shield, Globe, Download, LogOut, Check } from 'lucide-react'
+import { User, Shield, Download, LogOut, Check, Database, Sparkles } from 'lucide-react'
 
 export default function Settings() {
   const { user, profile, updateProfile, signOut } = useAuth()
@@ -12,6 +12,8 @@ export default function Settings() {
   const [budgetStyle, setBudgetStyle] = useState(profile?.budget_style || 'balanced')
   const [saved, setSaved] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [seeding, setSeeding] = useState(false)
+  const [seedSuccess, setSeedSuccess] = useState(false)
 
   const handleSaveProfile = async (e) => {
     e.preventDefault()
@@ -23,6 +25,18 @@ export default function Settings() {
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleSeedData = async () => {
+    if (!user) return
+    setSeeding(true)
+    try {
+      await seedDemoFinancialData(user.id, currency)
+      setSeedSuccess(true)
+      setTimeout(() => setSeedSuccess(false), 3000)
+    } finally {
+      setSeeding(false)
+    }
   }
 
   const handleExportCSV = async () => {
@@ -117,6 +131,20 @@ export default function Settings() {
             {saved ? <><Check size={16} /> Preferences Saved</> : 'Save Changes'}
           </button>
         </form>
+      </div>
+
+      {/* Demo Data Seeder */}
+      <div className="card neon-border">
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Database size={18} color="var(--neon-purple)" /> Quick Demo Data Generator
+        </h3>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
+          Instantly populate your account with sample Tanzanian wallets (M-Pesa, CRDB, Cash), sample transactions, and savings goals matching the showcase UI.
+        </p>
+
+        <button className="btn btn-secondary" onClick={handleSeedData} disabled={seeding}>
+          <Sparkles size={16} color="var(--neon-purple)" /> {seeding ? 'Generating Data...' : seedSuccess ? 'Showcase Data Populated!' : 'Load Sample Financial Data'}
+        </button>
       </div>
 
       {/* Data Export & Reports */}
