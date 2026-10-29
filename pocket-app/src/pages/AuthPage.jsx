@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Eye, EyeOff, Zap, Mail, Lock, User } from 'lucide-react'
+import { Eye, EyeOff, Zap, Mail, Lock, User, Sparkles, Database } from 'lucide-react'
 
 export default function AuthPage() {
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, enterDemoMode, isSupabaseConfigured } = useAuth()
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -29,7 +29,7 @@ export default function AuthPage() {
         if (error) setError(error.message)
         else setSuccess('Account created! Check your email to verify.')
       }
-    } catch (e) {
+    } catch {
       setError('Something went wrong. Try again.')
     } finally {
       setLoading(false)
@@ -61,9 +61,9 @@ export default function AuthPage() {
         pointerEvents: 'none'
       }} />
 
-      <div style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
+      <div style={{ width: '100%', maxWidth: 420, position: 'relative' }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{
             width: 64, height: 64,
             background: 'linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)',
@@ -73,18 +73,58 @@ export default function AuthPage() {
             margin: '0 auto 16px',
             boxShadow: '0 0 30px rgba(139,92,246,0.5)'
           }}>P</div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>
             <span className="neon-text">Pocket</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-            Smart personal finance management
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            Tanzania-first personal finance & Helios investment dashboard
           </p>
         </div>
 
         {/* Card */}
-        <div className="card neon-border" style={{ padding: 32 }}>
+        <div className="card neon-border" style={{ padding: 28 }}>
+          {/* Quick Demo Mode Trigger */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(236,72,153,0.1) 100%)',
+            border: '1px solid rgba(139,92,246,0.3)',
+            borderRadius: 12,
+            padding: '12px 14px',
+            marginBottom: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--neon-purple)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={14} /> INSTANT SHOWCASE
+              </span>
+              <span className="badge" style={{ background: isSupabaseConfigured ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)', color: isSupabaseConfigured ? '#10B981' : '#F59E0B' }}>
+                {isSupabaseConfigured ? 'Supabase Ready' : 'Demo Ready'}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm w-full"
+              onClick={enterDemoMode}
+              style={{
+                borderRadius: 20,
+                background: 'var(--gradient-primary)',
+                boxShadow: '0 0 15px rgba(139,92,246,0.5)',
+                fontWeight: 700
+              }}
+            >
+              Explore Demo Mode (Nadia Rashid)
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0', color: 'var(--text-muted)', fontSize: 11, textAlign: 'center' }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-card)' }} />
+            <span>OR LOGIN WITH SUPABASE</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-card)' }} />
+          </div>
+
           {/* Tabs */}
-          <div className="tabs" style={{ marginBottom: 28 }}>
+          <div className="tabs" style={{ marginBottom: 20 }}>
             <button
               className={`tab${mode === 'signin' ? ' active' : ''}`}
               onClick={() => setMode('signin')}
@@ -95,7 +135,7 @@ export default function AuthPage() {
             >Sign Up</button>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {mode === 'signup' && (
               <div className="form-group">
                 <label className="form-label">Full Name</label>
@@ -181,7 +221,7 @@ export default function AuthPage() {
               type="submit"
               className="btn btn-primary btn-lg w-full"
               disabled={loading}
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 6 }}
             >
               {loading ? (
                 <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
@@ -194,7 +234,7 @@ export default function AuthPage() {
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-muted)' }}>
+          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'var(--text-muted)' }}>
             {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
             <button
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--neon-purple)', fontWeight: 600 }}
@@ -204,10 +244,6 @@ export default function AuthPage() {
             </button>
           </p>
         </div>
-
-        <p style={{ textAlign: 'center', marginTop: 24, fontSize: 11, color: 'var(--text-muted)' }}>
-          Tanzania's smart finance companion
-        </p>
       </div>
     </div>
   )
